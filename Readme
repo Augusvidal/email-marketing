@@ -1,0 +1,37 @@
+# Email Marketing con SendGrid 📬
+
+Este proyecto está diseñado para facilitar el envío de campañas de email marketing utilizando SendGrid y un listado de contactos en formato CSV.
+
+## 🚀 ¿Qué hace este proyecto?
+
+-   Lee un archivo `.csv` con contactos.
+-   Parsea los datos (nombre y email).
+-   Filtra automáticamente los contactos que no tengan email cargado.
+-   Envía los emails usando la API de SendGrid.
+
+## 📂 Estructura esperada del CSV
+
+El archivo debe tener el siguiente formato, usando `;` como separador:
+
+> ⚠️ Asegurate de que todos los campos de email estén completos. Las filas sin email serán ignoradas automáticamente para evitar errores en la campaña.
+
+## 🛠 Requisitos
+
+-   Node.js (v18 o superior recomendado)
+-   TypeScript
+-   Una cuenta en [SendGrid](https://sendgrid.com/) con una API Key activa
+
+## 📦 Instalación
+
+1. Cloná el repositorio:
+
+```bash
+git clone https://github.com/tuusuario/email-marketing.git
+cd email-marketing
+```
+
+## Scripts
+
+-   npm install
+
+-   npx ts-node index.ts (Para mandar la cadena de emails)
