@@ -2,10 +2,11 @@ import fs from "fs";
 import csvParser from "csv-parser";
 import sgMail from "@sendgrid/mail";
 import path from "path";
+import dotenv from "dotenv";
 
-sgMail.setApiKey(
-    "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"
-);
+dotenv.config(); // Carga las variables desde .env
+
+sgMail.setApiKey(process.env.SENDGRID_API_KEY || "");
 
 const TEMPLATE_ID = "d-a1b3089e7217410bb7847c3803ca3d9c";
 const FROM_EMAIL = "zuly.vazquez@atlas.red";
@@ -82,7 +83,7 @@ const sendBatch = async (contacts: Contact[], batchNumber: number) => {
 };
 
 const main = async () => {
-    const contacts = await readCsv("nuevosEmails.csv"); // COLOCAR NOMBRE DEL ARCHIVO CSV ACA!!!
+    const contacts = await readCsv("testemails.csv"); // COLOCAR NOMBRE DEL ARCHIVO CSV ACA!!!
     const batches = chunkArray(contacts, BATCH_SIZE);
     for (let i = 0; i < batches.length; i++) {
         await sendBatch(batches[i], i + 1);
