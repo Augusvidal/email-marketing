@@ -1,16 +1,18 @@
 import fs from "fs";
 import csvParser from "csv-parser";
-import sgMail from "@sendgrid/mail";
 import path from "path";
-import dotenv from "dotenv";
+import { Resend } from 'resend';
+import dotenv from 'dotenv';
 
-dotenv.config(); // Carga las variables desde .env
+dotenv.config();
 
-sgMail.setApiKey(process.env.SENDGRID_API_KEY || "");
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-const TEMPLATE_ID = "d-a1b3089e7217410bb7847c3803ca3d9c";
-const FROM_EMAIL = "zuly.vazquez@atlas.red";
-const BATCH_SIZE = 500;
+const FROM_EMAIL = "onboarding@resend.dev";
+const FROM_NAME = "Augusto Vidal";
+const HTML_TEMPLATE = fs.readFileSync(path.join(__dirname, "mail_edificio.html"), "utf-8");
+const CONTACTS_FILE = "emailsmosca.csv";
+const BATCH_SIZE = 1;
 const ERROR_LOG_FILE = path.join(__dirname, "errors.txt");
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -23,11 +25,18 @@ const readCsv = (filePath: string): Promise<Contact[]> => {
     return new Promise((resolve, reject) => {
         const results: Contact[] = [];
         fs.createReadStream(filePath)
-            .pipe(csvParser({ separator: ";", skipLines: 0 }))
+            .pipe(csvParser({ 
+                separator: ";",
+                skipLines: 1,
+                headers: ['name', 'email']
+            }))
             .on("data", (data) => {
-                // Validación: si hay nombre pero no hay email, lo salteamos
-                if (data.email)
-                    results.push({ email: data.email, name: data.name });
+                if (data.email) {
+                    results.push({
+                        email: data.email.trim(),
+                        name: data.name.trim()
+                    });
+                }
             })
             .on("end", () => resolve(results))
             .on("error", reject);
@@ -52,39 +61,43 @@ const logErrorToFile = (
 [${timestamp}] ❌ Error en batch #${batchNumber}
 → Contactos:
 ${contacts.map((c) => `   - ${c.email}`).join("\n")}
-→ Detalle: ${JSON.stringify(error.response?.body || error.message, null, 2)}
+→ Detalle: ${JSON.stringify(error, null, 2)}
 ------------------------------------------------------------\n`;
 
     fs.appendFileSync(ERROR_LOG_FILE, errorEntry, "utf-8");
 };
 
 const sendBatch = async (contacts: Contact[], batchNumber: number) => {
-    const messages = contacts.map((c) => ({
-        to: c.email,
-        from: { email: FROM_EMAIL, name: "Zulema Vázquez" },
-        templateId: TEMPLATE_ID,
-        asm: {
-            groupId: 119472,
-        },
-    }));
-
     try {
-        await sgMail.send(messages, true);
+        console.log(contacts)
+        const sendPromises = contacts.map(contact => 
+            resend.emails.send({
+                from: `${FROM_NAME} <${FROM_EMAIL}>`,
+                to: contact.email,
+                subject: "Tu asunto aquí",
+                html: HTML_TEMPLATE
+            })
+        );
+
+        await Promise.all(sendPromises);
         console.log(
             `✅ Batch #${batchNumber} enviado con ${contacts.length} correos.`
         );
     } catch (err: any) {
         console.error(
             `❌ Error en batch #${batchNumber}:`,
-            err.response?.body || err.message
+            err
         );
         logErrorToFile(batchNumber, contacts, err);
     }
 };
 
 const main = async () => {
-    const contacts = await readCsv("testemails.csv"); // COLOCAR NOMBRE DEL ARCHIVO CSV ACA!!!
+    const contacts = await readCsv(CONTACTS_FILE);
     const batches = chunkArray(contacts, BATCH_SIZE);
+    
+    console.log(`🚀 Iniciando envío de ${contacts.length} correos en ${batches.length} batches`);
+    
     for (let i = 0; i < batches.length; i++) {
         await sendBatch(batches[i], i + 1);
         if (i < batches.length - 1) {
